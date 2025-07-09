@@ -36,7 +36,7 @@ app.get("/simsimi", (req, res) => {
 
   const replies = data[text];
   if (!replies || replies.length === 0) {
-    return res.json({ response: "আমি এটা শিখি নাই এখনো 🥹 teach command ব্যবহার করো!" });
+    return res.json({ response: "sorry baby ata amke teach kora hoy ni , plz teach me <🥺" });
   }
 
   let randomReply = replies[Math.floor(Math.random() * replies.length)];
