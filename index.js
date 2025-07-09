@@ -1,70 +1,84 @@
-const express = require('express');
+const express = require("express");
+const fs = require("fs");
 const app = express();
-const fs = require('fs');
+const PORT = process.env.PORT || 3000;
 
-let database = [];
+let data = require("./data.json");
 
-try {
-  database = JSON.parse(fs.readFileSync('data.json', 'utf8'));
-} catch (e) {
-  database = [];
-}
+app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send({
-    code: 200,
-    message: 'rX Simsimi API is Online!',
-    use: "/simsimi?text=Hi | /teach | /list | /edit | /delete",
-    author: "rX Abdullah"
-  });
+app.get("/", (req, res) => {
+  res.send("✅ rX SimSimi API is running!");
 });
 
-app.get('/simsimi', (req, res) => {
+app.get("/simsimi", (req, res) => {
   const text = req.query.text?.toLowerCase();
-  if (!text) return res.status(400).send({ response: "❌ No input text!" });
+  const senderName = req.query.senderName || "User";
 
-  const matches = database.filter(entry => entry.ask === text);
-  if (matches.length === 0) return res.send({ response: "🙄 I don't know this yet!" });
+  if (!text) return res.json({ response: "❌ Please provide text" });
 
-  const random = matches[Math.floor(Math.random() * matches.length)];
-  res.send({ response: random.ans });
+  const replies = data[text];
+  if (!replies || replies.length === 0) {
+    return res.json({ response: "আমি এটা শিখি নাই এখনো 🥹 teach command ব্যবহার করো!" });
+  }
+
+  const randomReply = replies[Math.floor(Math.random() * replies.length)];
+  return res.json({ response: randomReply });
 });
 
-app.get('/teach', (req, res) => {
+app.get("/teach", (req, res) => {
   const { ask, ans, senderID, senderName } = req.query;
-  if (!ask || !ans) return res.send({ message: "❌ Missing ask or ans!" });
+  if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
-  database.push({ ask: ask.toLowerCase(), ans, by: senderName || senderID || "unknown" });
-  fs.writeFileSync('data.json', JSON.stringify(database, null, 2));
-  res.send({ message: "✅ Reply added!" });
+  const question = ask.toLowerCase();
+
+  if (!data[question]) data[question] = [];
+  if (!data[question].includes(ans)) data[question].push(ans);
+
+  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  return res.json({ message: `Added "${ask}" => "${ans}" by ${senderName || "Unknown"}` });
 });
 
-app.get('/list', (req, res) => {
-  res.send({
+app.get("/list", (req, res) => {
+  const totalQuestions = Object.keys(data).length;
+  const totalReplies = Object.values(data).reduce((acc, arr) => acc + arr.length, 0);
+  return res.json({
     code: 200,
-    totalQuestions: [...new Set(database.map(e => e.ask))].length,
-    totalReplies: database.length,
+    totalQuestions,
+    totalReplies,
     author: "rX Abdullah"
   });
 });
 
-app.get('/edit', (req, res) => {
-  const { ask, old, new: newAns } = req.query;
-  const index = database.findIndex(e => e.ask === ask.toLowerCase() && e.ans === old);
-  if (index === -1) return res.send({ message: "❌ Not found!" });
-
-  database[index].ans = newAns;
-  fs.writeFileSync('data.json', JSON.stringify(database, null, 2));
-  res.send({ message: "✅ Edited successfully!" });
-});
-
-app.get('/delete', (req, res) => {
+app.get("/delete", (req, res) => {
   const { ask, ans } = req.query;
-  const before = database.length;
-  database = database.filter(e => !(e.ask === ask.toLowerCase() && e.ans === ans));
-  fs.writeFileSync('data.json', JSON.stringify(database, null, 2));
+  const question = ask?.toLowerCase();
+  if (!question || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
-  res.send({ message: before === database.length ? "❌ Not found!" : "✅ Deleted!" });
+  if (!data[question]) return res.json({ message: "Question not found" });
+
+  data[question] = data[question].filter(r => r !== ans);
+  if (data[question].length === 0) delete data[question];
+
+  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  return res.json({ message: "✅ Reply deleted" });
 });
 
-module.exports = app;
+app.get("/edit", (req, res) => {
+  const { ask, old, new: newReply } = req.query;
+  const question = ask?.toLowerCase();
+  if (!question || !old || !newReply) return res.json({ message: "❌ Provide ask, old and new" });
+
+  if (!data[question]) return res.json({ message: "Question not found" });
+  const index = data[question].indexOf(old);
+  if (index === -1) return res.json({ message: "Old reply not found" });
+
+  data[question][index] = newReply;
+
+  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  return res.json({ message: "✅ Reply updated" });
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server is running on port ${PORT}`);
+});
