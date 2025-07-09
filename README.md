@@ -1,1 +1,0 @@
-# rx-simisimi-api
