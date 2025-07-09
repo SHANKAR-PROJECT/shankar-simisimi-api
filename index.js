@@ -3,7 +3,18 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let data = require("./data.json");
+function readData() {
+  try {
+    const jsonData = fs.readFileSync("./data.json", "utf-8");
+    return JSON.parse(jsonData);
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeData(newData) {
+  fs.writeFileSync("./data.json", JSON.stringify(newData, null, 2));
+}
 
 app.use(express.json());
 
@@ -12,6 +23,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/simsimi", (req, res) => {
+  const data = readData();
   const text = req.query.text?.toLowerCase();
   const senderName = req.query.senderName || "User";
 
@@ -27,7 +39,9 @@ app.get("/simsimi", (req, res) => {
 });
 
 app.get("/teach", (req, res) => {
-  const { ask, ans, senderID, senderName } = req.query;
+  let data = readData();
+
+  const { ask, ans, senderName } = req.query;
   if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
   const question = ask.toLowerCase();
@@ -35,11 +49,12 @@ app.get("/teach", (req, res) => {
   if (!data[question]) data[question] = [];
   if (!data[question].includes(ans)) data[question].push(ans);
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  writeData(data);
   return res.json({ message: `Added "${ask}" => "${ans}" by ${senderName || "Unknown"}` });
 });
 
 app.get("/list", (req, res) => {
+  const data = readData();
   const totalQuestions = Object.keys(data).length;
   const totalReplies = Object.values(data).reduce((acc, arr) => acc + arr.length, 0);
   return res.json({
@@ -51,6 +66,8 @@ app.get("/list", (req, res) => {
 });
 
 app.get("/delete", (req, res) => {
+  let data = readData();
+
   const { ask, ans } = req.query;
   const question = ask?.toLowerCase();
   if (!question || !ans) return res.json({ message: "❌ Provide ask and ans" });
@@ -60,11 +77,13 @@ app.get("/delete", (req, res) => {
   data[question] = data[question].filter(r => r !== ans);
   if (data[question].length === 0) delete data[question];
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  writeData(data);
   return res.json({ message: "✅ Reply deleted" });
 });
 
 app.get("/edit", (req, res) => {
+  let data = readData();
+
   const { ask, old, new: newReply } = req.query;
   const question = ask?.toLowerCase();
   if (!question || !old || !newReply) return res.json({ message: "❌ Provide ask, old and new" });
@@ -75,7 +94,7 @@ app.get("/edit", (req, res) => {
 
   data[question][index] = newReply;
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  writeData(data);
   return res.json({ message: "✅ Reply updated" });
 });
 
