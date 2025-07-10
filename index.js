@@ -4,7 +4,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 let data = require("./data.json");
-
 app.use(express.json());
 
 const fancyFonts = (text) => {
@@ -17,8 +16,7 @@ const fancyFonts = (text) => {
     H: '𝗛', I: '𝗜', J: '𝗝', K: '𝗞', L: '𝗟', M: '𝗠', N: '𝗡',
     O: '𝗢', P: '𝗣', Q: '𝗤', R: '𝗥', S: '𝗦', T: '𝗧', U: '𝗨',
     V: '𝗩', W: '𝗪', X: '𝗫', Y: '𝗬', Z: '𝗭',
-    ' ': ' ',
-    '.': '.', ',': ',', '?': '?', '!': '!', '-': '-', '_': '_'
+    ' ': ' ', '.': '.', ',': ',', '?': '?', '!': '!', '-': '-', '_': '_'
   };
   return text.split('').map(c => boldMap[c] || c).join('');
 };
@@ -31,7 +29,6 @@ app.get("/", (req, res) => {
 
 app.get("/simsimi", (req, res) => {
   const text = req.query.text?.toLowerCase();
-
   if (!text) return res.json({ response: "❌ Please provide text" });
 
   const replies = data[text];
@@ -56,7 +53,7 @@ app.get("/teach", (req, res) => {
   if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
   const question = ask.toLowerCase();
-  const answersArray = ans.split(" - ").map(item => item.trim()).filter(Boolean);
+  const answersArray = ans.split(" - ").map(a => a.trim()).filter(Boolean);
 
   if (!data[question]) data[question] = [];
 
@@ -65,7 +62,12 @@ app.get("/teach", (req, res) => {
   });
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({ message: "✅ Replies added successfully" });
+  return res.json({
+    message: "✅ Replies added successfully",
+    total: data[question].length,
+    trigger: question,
+    replies: data[question]
+  });
 });
 
 app.get("/list", (req, res) => {
@@ -84,28 +86,31 @@ app.get("/delete", (req, res) => {
   const question = ask?.toLowerCase();
   if (!question || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
-  if (!data[question]) return res.json({ message: "Question not found" });
+  if (!data[question]) return res.json({ message: "❌ Question not found" });
 
   data[question] = data[question].filter(r => r !== ans);
   if (data[question].length === 0) delete data[question];
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({ message: "✅ Reply deleted" });
+  return res.json({ message: "✅ Reply deleted successfully" });
 });
 
 app.get("/edit", (req, res) => {
   const { ask, old, new: newReply } = req.query;
   const question = ask?.toLowerCase();
-  if (!question || !old || !newReply) return res.json({ message: "❌ Provide ask, old and new" });
+  if (!question || !old || !newReply) {
+    return res.json({ message: "❌ Provide ask, old and new" });
+  }
 
-  if (!data[question]) return res.json({ message: "Question not found" });
+  if (!data[question]) return res.json({ message: "❌ Question not found" });
+
   const index = data[question].indexOf(old);
-  if (index === -1) return res.json({ message: "Old reply not found" });
+  if (index === -1) return res.json({ message: "❌ Old reply not found" });
 
   data[question][index] = newReply;
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({ message: "✅ Reply updated" });
+  return res.json({ message: "✅ Reply updated successfully" });
 });
 
 app.get("/simsimi-list", (req, res) => {
