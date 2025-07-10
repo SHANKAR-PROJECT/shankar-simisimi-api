@@ -3,7 +3,12 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let data = require("./data.json");
+let data = {};
+try {
+  data = JSON.parse(fs.readFileSync("./data.json", "utf8"));
+} catch {
+  data = {};
+}
 
 app.use(express.json());
 
@@ -36,7 +41,7 @@ app.get("/simsimi", (req, res) => {
 
   const replies = data[text];
   if (!replies || replies.length === 0) {
-    return res.json({ response: "Sorry baby, ata amake teach kora hoy nai 🥺" });
+    return res.json({ response: "sorry baby ata amke teach kora hoy ni , plz teach me <🥺" });
   }
 
   let randomReply = replies[Math.floor(Math.random() * replies.length)];
@@ -64,8 +69,13 @@ app.get("/teach", (req, res) => {
     if (!data[question].includes(a)) data[question].push(a);
   });
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({ message: "✅ Replies added successfully" });
+  try {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  } catch (err) {
+    return res.json({ message: "❌ Failed to save data." });
+  }
+  
+  return res.json({ message: "✅ Taught successfully" });
 });
 
 app.get("/list", (req, res) => {
@@ -74,52 +84,50 @@ app.get("/list", (req, res) => {
   return res.json({
     code: 200,
     totalQuestions,
-    totalReplies,
-    author: "rX Abdullah"
+    totalReplies
   });
 });
 
 app.get("/delete", (req, res) => {
   const { ask, ans } = req.query;
-  const question = ask?.toLowerCase();
-  if (!question || !ans) return res.json({ message: "❌ Provide ask and ans" });
+  if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
+
+  const question = ask.toLowerCase();
 
   if (!data[question]) return res.json({ message: "Question not found" });
 
   data[question] = data[question].filter(r => r !== ans);
   if (data[question].length === 0) delete data[question];
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  } catch (err) {
+    return res.json({ message: "❌ Failed to save data." });
+  }
+
   return res.json({ message: "✅ Reply deleted" });
 });
 
 app.get("/edit", (req, res) => {
   const { ask, old, new: newReply } = req.query;
-  const question = ask?.toLowerCase();
-  if (!question || !old || !newReply) return res.json({ message: "❌ Provide ask, old and new" });
+  if (!ask || !old || !newReply) return res.json({ message: "❌ Provide ask, old and new" });
+
+  const question = ask.toLowerCase();
 
   if (!data[question]) return res.json({ message: "Question not found" });
+
   const index = data[question].indexOf(old);
   if (index === -1) return res.json({ message: "Old reply not found" });
 
   data[question][index] = newReply;
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  } catch (err) {
+    return res.json({ message: "❌ Failed to save data." });
+  }
+
   return res.json({ message: "✅ Reply updated" });
-});
-
-app.get("/simsimi-list", (req, res) => {
-  const { ask } = req.query;
-  const question = ask?.toLowerCase();
-  if (!question) return res.json({ message: "❌ Provide a trigger to list replies" });
-
-  if (!data[question]) return res.json({ message: "❌ No replies found for this trigger" });
-
-  return res.json({
-    trigger: question,
-    total: data[question].length,
-    replies: data[question]
-  });
 });
 
 app.listen(PORT, () => {
