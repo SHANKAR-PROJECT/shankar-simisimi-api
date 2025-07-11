@@ -29,7 +29,7 @@ const fancyFonts = (text) => {
 };
 
 const removeEmojis = (text) => {
-  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD800-\uDFFF]|[\uFE00-\uFE0F]|[\u200D])/g, '').trim();
+  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
 };
 
 const emojis = ['🥰', '😊', '😽', '😍', '😘', '💖', '💙', '💜', '🌟', '✨'];
@@ -65,27 +65,19 @@ app.get("/simsimi", (req, res) => {
 
 app.get("/teach", (req, res) => {
   const { ask, ans, user } = req.query;
-
-  if (!ask || !ans) {
-    return res.json({ message: "❌ Provide ask and ans" });
-  }
+  if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
   const question = removeEmojis(ask.toLowerCase());
-  const replies = ans.split("-").map(r => r.trim()).filter(Boolean);
+  const replies = ans.split(" - ").map(r => r.trim()).filter(Boolean);
 
-  if (!data[question]) {
-    data[question] = replies;
-  } else {
-    for (let r of replies) {
-      if (!data[question].includes(r)) {
-        data[question].push(r);
-      }
-    }
-  }
+  if (!data[question]) data[question] = [];
+  replies.forEach(r => {
+    if (!data[question].includes(r)) data[question].push(r);
+  });
 
   try {
     fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch (err) {
+  } catch {
     return res.json({ message: "❌ Failed to save data" });
   }
 
@@ -103,8 +95,10 @@ app.get("/list", (req, res) => {
     const totalQuestions = Object.keys(data).length;
     const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
     res.json({
+      code: 200,
       totalQuestions,
-      totalReplies
+      totalReplies,
+      author: "rX Abdullah"
     });
   } catch {
     res.json({ message: "❌ Error listing data" });
