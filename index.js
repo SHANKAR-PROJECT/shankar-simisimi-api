@@ -7,7 +7,8 @@ app.use(express.json());
 
 let data = {};
 try {
-  data = JSON.parse(fs.readFileSync("./data.json", "utf8"));
+  const raw = fs.readFileSync("./data.json", "utf8");
+  data = JSON.parse(raw || "{}");
 } catch {
   data = {};
 }
@@ -39,7 +40,7 @@ app.get("/", (req, res) => {
 
 app.get("/simsimi", (req, res) => {
   let text = req.query.text?.toLowerCase();
-  if (!text) return res.json({ response: "❌ Please provide text" });
+  if (!text) return res.json({ response: "❌ Provide text" });
 
   text = removeEmojis(text);
   const replies = data[text];
@@ -76,20 +77,24 @@ app.get("/teach", (req, res) => {
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
   res.json({
-    message: "✅ Replies added successfully",
-    total: data[question].length,
+    message: "✅ Replies added",
     trigger: question,
+    total: data[question].length,
     replies: data[question]
   });
 });
 
 app.get("/list", (req, res) => {
-  const totalQuestions = Object.keys(data).length;
-  const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
-  res.json({
-    totalQuestions,
-    totalReplies
-  });
+  try {
+    const totalQuestions = Object.keys(data).length;
+    const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
+    res.json({
+      totalQuestions,
+      totalReplies
+    });
+  } catch (err) {
+    res.json({ message: "❌ Failed to fetch list", error: err.message });
+  }
 });
 
 app.get("/delete", (req, res) => {
@@ -97,13 +102,13 @@ app.get("/delete", (req, res) => {
   const question = removeEmojis(ask?.toLowerCase());
   if (!question || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
-  if (!data[question]) return res.json({ message: "❌ Question not found" });
+  if (!data[question]) return res.json({ message: "❌ Trigger not found" });
 
   data[question] = data[question].filter(r => r !== ans);
   if (data[question].length === 0) delete data[question];
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  res.json({ message: "✅ Reply deleted successfully" });
+  res.json({ message: "✅ Reply deleted" });
 });
 
 app.get("/edit", (req, res) => {
@@ -113,7 +118,7 @@ app.get("/edit", (req, res) => {
     return res.json({ message: "❌ Provide ask, old and new" });
   }
 
-  if (!data[question]) return res.json({ message: "❌ Question not found" });
+  if (!data[question]) return res.json({ message: "❌ Trigger not found" });
 
   const index = data[question].indexOf(old);
   if (index === -1) return res.json({ message: "❌ Old reply not found" });
@@ -121,14 +126,14 @@ app.get("/edit", (req, res) => {
   data[question][index] = updated;
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  res.json({ message: "✅ Reply updated successfully" });
+  res.json({ message: "✅ Reply updated" });
 });
 
 app.get("/simsimi-list", (req, res) => {
   const question = removeEmojis(req.query.ask?.toLowerCase());
-  if (!question) return res.json({ message: "❌ Provide a trigger to list replies" });
+  if (!question) return res.json({ message: "❌ Provide a trigger" });
 
-  if (!data[question]) return res.json({ message: "❌ No replies found for this trigger" });
+  if (!data[question]) return res.json({ message: "❌ No replies found" });
 
   res.json({
     trigger: question,
