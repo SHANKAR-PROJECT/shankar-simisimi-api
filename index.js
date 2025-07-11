@@ -3,8 +3,14 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let data = require("./data.json");
 app.use(express.json());
+
+let data = {};
+try {
+  data = JSON.parse(fs.readFileSync("./data.json", "utf8"));
+} catch {
+  data = {};
+}
 
 const fancyFonts = (text) => {
   const boldMap = {
@@ -28,7 +34,7 @@ const removeEmojis = (text) => {
 const emojis = ['🥰', '😊', '😽', '😍', '😘', '💖', '💙', '💜', '🌟', '✨'];
 
 app.get("/", (req, res) => {
-  res.send("✅ rX SimSimi API is running!");
+  res.send("✅ API is running");
 });
 
 app.get("/simsimi", (req, res) => {
@@ -81,10 +87,8 @@ app.get("/list", (req, res) => {
   const totalQuestions = Object.keys(data).length;
   const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
   res.json({
-    code: 200,
     totalQuestions,
-    totalReplies,
-    author: "rX Abdullah"
+    totalReplies
   });
 });
 
