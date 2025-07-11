@@ -21,6 +21,10 @@ const fancyFonts = (text) => {
   return text.split('').map(c => boldMap[c] || c).join('');
 };
 
+const removeEmojis = (text) => {
+  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD800-\uDFFF]|[\uFE00-\uFE0F]|[\u200D])/g, '').trim();
+};
+
 const emojis = ['🥰', '😊', '😽', '😍', '😘', '💖', '💙', '💜', '🌟', '✨'];
 
 app.get("/", (req, res) => {
@@ -28,41 +32,44 @@ app.get("/", (req, res) => {
 });
 
 app.get("/simsimi", (req, res) => {
-  const text = req.query.text?.toLowerCase();
+  let text = req.query.text?.toLowerCase();
   if (!text) return res.json({ response: "❌ Please provide text" });
 
+  text = removeEmojis(text);
   const replies = data[text];
+
   if (!replies || replies.length === 0) {
-    return res.json({ response: "Sorry baby, ata amake teach kora hoy nai 🥺" });
+    return res.json({
+      response: fancyFonts("sorry bby, ata amake teach kora hoy ni, plz teach me <🥺")
+    });
   }
 
-  let randomReply = replies[Math.floor(Math.random() * replies.length)];
-  randomReply = fancyFonts(randomReply);
+  let reply = replies[Math.floor(Math.random() * replies.length)];
+  reply = fancyFonts(reply);
 
   const countEmoji = Math.floor(Math.random() * 2) + 1;
   for (let i = 0; i < countEmoji; i++) {
-    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-    randomReply += " " + randomEmoji;
+    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    reply += " " + emoji;
   }
 
-  return res.json({ response: randomReply });
+  res.json({ response: reply });
 });
 
 app.get("/teach", (req, res) => {
   const { ask, ans } = req.query;
   if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
-  const question = ask.toLowerCase();
-  const answersArray = ans.split(" - ").map(a => a.trim()).filter(Boolean);
+  const question = removeEmojis(ask.toLowerCase());
+  const replies = ans.split(" - ").map(r => r.trim()).filter(Boolean);
 
   if (!data[question]) data[question] = [];
-
-  answersArray.forEach(a => {
-    if (!data[question].includes(a)) data[question].push(a);
+  replies.forEach(r => {
+    if (!data[question].includes(r)) data[question].push(r);
   });
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({
+  res.json({
     message: "✅ Replies added successfully",
     total: data[question].length,
     trigger: question,
@@ -72,8 +79,8 @@ app.get("/teach", (req, res) => {
 
 app.get("/list", (req, res) => {
   const totalQuestions = Object.keys(data).length;
-  const totalReplies = Object.values(data).reduce((acc, arr) => acc + arr.length, 0);
-  return res.json({
+  const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
+  res.json({
     code: 200,
     totalQuestions,
     totalReplies,
@@ -83,7 +90,7 @@ app.get("/list", (req, res) => {
 
 app.get("/delete", (req, res) => {
   const { ask, ans } = req.query;
-  const question = ask?.toLowerCase();
+  const question = removeEmojis(ask?.toLowerCase());
   if (!question || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
   if (!data[question]) return res.json({ message: "❌ Question not found" });
@@ -92,13 +99,13 @@ app.get("/delete", (req, res) => {
   if (data[question].length === 0) delete data[question];
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({ message: "✅ Reply deleted successfully" });
+  res.json({ message: "✅ Reply deleted successfully" });
 });
 
 app.get("/edit", (req, res) => {
-  const { ask, old, new: newReply } = req.query;
-  const question = ask?.toLowerCase();
-  if (!question || !old || !newReply) {
+  const { ask, old, new: updated } = req.query;
+  const question = removeEmojis(ask?.toLowerCase());
+  if (!question || !old || !updated) {
     return res.json({ message: "❌ Provide ask, old and new" });
   }
 
@@ -107,20 +114,19 @@ app.get("/edit", (req, res) => {
   const index = data[question].indexOf(old);
   if (index === -1) return res.json({ message: "❌ Old reply not found" });
 
-  data[question][index] = newReply;
+  data[question][index] = updated;
 
   fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  return res.json({ message: "✅ Reply updated successfully" });
+  res.json({ message: "✅ Reply updated successfully" });
 });
 
 app.get("/simsimi-list", (req, res) => {
-  const { ask } = req.query;
-  const question = ask?.toLowerCase();
+  const question = removeEmojis(req.query.ask?.toLowerCase());
   if (!question) return res.json({ message: "❌ Provide a trigger to list replies" });
 
   if (!data[question]) return res.json({ message: "❌ No replies found for this trigger" });
 
-  return res.json({
+  res.json({
     trigger: question,
     total: data[question].length,
     replies: data[question]
