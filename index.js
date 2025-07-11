@@ -112,10 +112,8 @@ app.get("/list", (req, res) => {
 });
 
 app.get("/simsimi-list", (req, res) => {
-  const rawAsk = req.query.ask;
-  if (!rawAsk) return res.json({ message: "❌ Provide a trigger" });
-
-  const question = removeEmojis(rawAsk.toLowerCase());
+  const question = removeEmojis(req.query.ask?.toLowerCase());
+  if (!question) return res.json({ message: "❌ Provide a trigger" });
 
   if (!data[question]) return res.json({ message: "❌ No replies found" });
 
