@@ -64,26 +64,37 @@ app.get("/simsimi", (req, res) => {
 });
 
 app.get("/teach", (req, res) => {
-  const { ask, ans } = req.query;
-  if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
+  const { ask, ans, user } = req.query;
+
+  if (!ask || !ans) {
+    return res.json({ message: "❌ Provide ask and ans" });
+  }
 
   const question = removeEmojis(ask.toLowerCase());
-  const replies = ans.split(" - ").map(r => r.trim()).filter(Boolean);
+  const replies = ans.split("-").map(r => r.trim()).filter(Boolean);
 
-  if (!data[question]) data[question] = [];
-  replies.forEach(r => {
-    if (!data[question].includes(r)) data[question].push(r);
-  });
+  if (!data[question]) {
+    data[question] = replies;
+  } else {
+    for (let r of replies) {
+      if (!data[question].includes(r)) {
+        data[question].push(r);
+      }
+    }
+  }
 
   try {
     fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch {}
+  } catch (err) {
+    return res.json({ message: "❌ Failed to save data" });
+  }
 
   res.json({
-    message: "✅ Replies added",
+    message: `✅ Total ${replies.length} reply added!`,
     trigger: question,
     total: data[question].length,
-    replies: data[question]
+    replies: data[question],
+    teacher: user || "Unknown"
   });
 });
 
@@ -106,11 +117,15 @@ app.get("/simsimi-list", (req, res) => {
 
   if (!data[question]) return res.json({ message: "❌ No replies found" });
 
-  res.json({
-    trigger: question,
-    total: data[question].length,
-    replies: data[question]
-  });
+  const list = data[question]
+    .map((r, i) => `${i + 1}. ${r}`)
+    .join("\n");
+
+  const formatted = `📌 ${fancyFonts("Trigger")}: ${question.toUpperCase()}
+📋 ${fancyFonts("Total")}: ${data[question].length}
+━━━━━━━━━━━━━━\n${list}`;
+
+  res.json({ message: formatted });
 });
 
 app.get("/delete", (req, res) => {
