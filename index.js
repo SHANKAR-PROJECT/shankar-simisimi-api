@@ -3,8 +3,6 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-
 let data = {};
 try {
   const raw = fs.readFileSync("./data.json", "utf8");
@@ -12,6 +10,8 @@ try {
 } catch {
   data = {};
 }
+
+app.use(express.json());
 
 const fancyFonts = (text) => {
   const boldMap = {
@@ -75,7 +75,10 @@ app.get("/teach", (req, res) => {
     if (!data[question].includes(r)) data[question].push(r);
   });
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  } catch {}
+
   res.json({
     message: "✅ Replies added",
     trigger: question,
@@ -92,9 +95,22 @@ app.get("/list", (req, res) => {
       totalQuestions,
       totalReplies
     });
-  } catch (err) {
-    res.json({ message: "❌ Failed to fetch list", error: err.message });
+  } catch {
+    res.json({ message: "❌ Error listing data" });
   }
+});
+
+app.get("/simsimi-list", (req, res) => {
+  const question = removeEmojis(req.query.ask?.toLowerCase());
+  if (!question) return res.json({ message: "❌ Provide a trigger" });
+
+  if (!data[question]) return res.json({ message: "❌ No replies found" });
+
+  res.json({
+    trigger: question,
+    total: data[question].length,
+    replies: data[question]
+  });
 });
 
 app.get("/delete", (req, res) => {
@@ -107,7 +123,10 @@ app.get("/delete", (req, res) => {
   data[question] = data[question].filter(r => r !== ans);
   if (data[question].length === 0) delete data[question];
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  } catch {}
+
   res.json({ message: "✅ Reply deleted" });
 });
 
@@ -125,21 +144,11 @@ app.get("/edit", (req, res) => {
 
   data[question][index] = updated;
 
-  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  } catch {}
+
   res.json({ message: "✅ Reply updated" });
-});
-
-app.get("/simsimi-list", (req, res) => {
-  const question = removeEmojis(req.query.ask?.toLowerCase());
-  if (!question) return res.json({ message: "❌ Provide a trigger" });
-
-  if (!data[question]) return res.json({ message: "❌ No replies found" });
-
-  res.json({
-    trigger: question,
-    total: data[question].length,
-    replies: data[question]
-  });
 });
 
 app.listen(PORT, () => {
