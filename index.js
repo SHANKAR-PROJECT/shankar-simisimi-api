@@ -29,7 +29,7 @@ const fancyFonts = (text) => {
 };
 
 const removeEmojis = (text) => {
-  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD800-\uDFFF]|[\uFE00-\uFE0F]|[\u200D])/g, '').trim();
 };
 
 const emojis = ['🥰', '😊', '😽', '😍', '😘', '💖', '💙', '💜', '🌟', '✨'];
@@ -64,29 +64,33 @@ app.get("/simsimi", (req, res) => {
 });
 
 app.get("/teach", (req, res) => {
-  const { ask, ans, user } = req.query;
+  const { ask, ans, senderName } = req.query;
   if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
 
   const question = removeEmojis(ask.toLowerCase());
-  const replies = ans.split(" - ").map(r => r.trim()).filter(Boolean);
+  const replies = ans.split("-").map(r => r.trim()).filter(Boolean);
 
-  if (!data[question]) data[question] = [];
-  replies.forEach(r => {
-    if (!data[question].includes(r)) data[question].push(r);
+  if (!data[question]) {
+    data[question] = [];
+  }
+
+  let newCount = 0;
+  replies.forEach(reply => {
+    if (!data[question].includes(reply)) {
+      data[question].push(reply);
+      newCount++;
+    }
   });
 
   try {
     fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch {
+  } catch (err) {
     return res.json({ message: "❌ Failed to save data" });
   }
 
+  const latestReply = replies[replies.length - 1] || replies[0];
   res.json({
-    message: `✅ Total ${replies.length} reply added!`,
-    trigger: question,
-    total: data[question].length,
-    replies: data[question],
-    teacher: user || "Unknown"
+    message: `✅ reply added!\nTrigger: ${question}\nTotal teach: ${data[question].length}\nReplies: ${latestReply}\nTeacher: ${senderName || "Unknown"}`
   });
 });
 
@@ -95,10 +99,8 @@ app.get("/list", (req, res) => {
     const totalQuestions = Object.keys(data).length;
     const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
     res.json({
-      code: 200,
       totalQuestions,
-      totalReplies,
-      author: "rX Abdullah"
+      totalReplies
     });
   } catch {
     res.json({ message: "❌ Error listing data" });
@@ -115,11 +117,8 @@ app.get("/simsimi-list", (req, res) => {
     .map((r, i) => `${i + 1}. ${r}`)
     .join("\n");
 
-  const formatted = `📌 ${fancyFonts("Trigger")}: ${question.toUpperCase()}
-📋 ${fancyFonts("Total")}: ${data[question].length}
-━━━━━━━━━━━━━━\n${list}`;
-
-  res.json({ message: formatted });
+  const formatted = `📌 ${fancyFonts("Trigger")}: ${question.toUpperCase()}\n📋 ${fancyFonts("Total")}: ${data[question].length}\n━━━━━━━━━━━━━━\n${list}`;
+  res.json({ message: formatted, total: data[question].length, replies: data[question] });
 });
 
 app.get("/delete", (req, res) => {
