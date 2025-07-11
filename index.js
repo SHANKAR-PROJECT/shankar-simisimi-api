@@ -29,7 +29,7 @@ const fancyFonts = (text) => {
 };
 
 const removeEmojis = (text) => {
-  return text.replace(/([\u2700-\u27BF\uE000-\uF8FF\uD800-\uDFFF\uFE00-\uFE0F\u200D])/g, '').trim();
+  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD800-\uDFFF]|[\uFE00-\uFE0F]|[\u200D])/g, '').trim();
 };
 
 const emojis = ['🥰', '😊', '😽', '😍', '😘', '💖', '💙', '💜', '🌟', '✨'];
@@ -39,10 +39,10 @@ app.get("/", (req, res) => {
 });
 
 app.get("/simsimi", (req, res) => {
-  let text = req.query.text;
+  let text = req.query.text?.toLowerCase();
   if (!text) return res.json({ response: "❌ Provide text" });
 
-  text = removeEmojis(text.toLowerCase());
+  text = removeEmojis(text);
   const replies = data[text];
 
   if (!replies || replies.length === 0) {
@@ -51,42 +51,46 @@ app.get("/simsimi", (req, res) => {
     });
   }
 
-  const reply = replies[Math.floor(Math.random() * replies.length)];
-  let final = fancyFonts(reply);
+  let reply = replies[Math.floor(Math.random() * replies.length)];
+  reply = fancyFonts(reply);
 
   const countEmoji = Math.floor(Math.random() * 2) + 1;
   for (let i = 0; i < countEmoji; i++) {
-    final += " " + emojis[Math.floor(Math.random() * emojis.length)];
+    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    reply += " " + emoji;
   }
 
-  res.json({ response: final });
+  res.json({ response: reply });
 });
 
 app.get("/teach", (req, res) => {
   const { ask, ans, user } = req.query;
-  if (!ask || !ans) return res.json({ message: "❌ Provide ask and ans" });
+
+  if (!ask || !ans) {
+    return res.json({ message: "❌ Provide ask and ans" });
+  }
 
   const question = removeEmojis(ask.toLowerCase());
-  const answers = ans.split("-").map(a => a.trim()).filter(Boolean);
+  const replies = ans.split("-").map(r => r.trim()).filter(Boolean);
 
   if (!data[question]) {
-    data[question] = answers;
+    data[question] = replies;
   } else {
-    for (let a of answers) {
-      if (!data[question].includes(a)) {
-        data[question].push(a);
+    for (let r of replies) {
+      if (!data[question].includes(r)) {
+        data[question].push(r);
       }
     }
   }
 
   try {
     fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch {
-    return res.json({ message: "❌ Failed to save" });
+  } catch (err) {
+    return res.json({ message: "❌ Failed to save data" });
   }
 
   res.json({
-    message: `✅ Total ${answers.length} reply added`,
+    message: `✅ Total ${replies.length} reply added!`,
     trigger: question,
     total: data[question].length,
     replies: data[question],
@@ -98,9 +102,12 @@ app.get("/list", (req, res) => {
   try {
     const totalQuestions = Object.keys(data).length;
     const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
-    res.json({ totalQuestions, totalReplies });
+    res.json({
+      totalQuestions,
+      totalReplies
+    });
   } catch {
-    res.json({ message: "❌ Listing failed" });
+    res.json({ message: "❌ Error listing data" });
   }
 });
 
