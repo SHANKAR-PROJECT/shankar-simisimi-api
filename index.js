@@ -4,14 +4,22 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 let data = {};
+let settings = { autoTeach: true };
+
 try {
-  const raw = fs.readFileSync("./data.json", "utf8");
-  data = JSON.parse(raw || "{}");
-} catch {
-  data = {};
-}
+  data = JSON.parse(fs.readFileSync("./data.json", "utf8") || "{}");
+} catch { data = {}; }
+
+try {
+  settings = JSON.parse(fs.readFileSync("./settings.json", "utf8") || "{}");
+} catch { settings = { autoTeach: true }; }
 
 app.use(express.json());
+
+const save = () => {
+  fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
+  fs.writeFileSync("./settings.json", JSON.stringify(settings, null, 2));
+};
 
 const fancyFonts = (text) => {
   const boldMap = {
@@ -29,10 +37,10 @@ const fancyFonts = (text) => {
 };
 
 const removeEmojis = (text) => {
-  return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD800-\uDFFF]|[\uFE00-\uFE0F]|[\u200D])/g, '').trim();
+  return text.replace(/[\u{1F600}-\u{1F6FF}\u{2700}-\u{27BF}\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, "").trim();
 };
 
-const emojis = ['🥰', '😊', '😽', '😍', '😘', '💖', '💙', '💜', '🌟', '✨'];
+const emojis = ['🥰','😊','😽','😍','😘','💖','💙','💜','🌟','✨'];
 
 app.get("/", (req, res) => {
   res.send("✅ API is running");
@@ -47,7 +55,7 @@ app.get("/simsimi", (req, res) => {
 
   if (!replies || replies.length === 0) {
     return res.json({
-      response: fancyFonts("sorry bby, ata amake teach kora hoy ni, plz teach me <🥺")
+      response: fancyFonts("Sorry bby, ei kotha ta amake teach kora hoy ni 🥺. Plz teach me!")
     });
   }
 
@@ -82,11 +90,7 @@ app.get("/teach", (req, res) => {
     }
   });
 
-  try {
-    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch (err) {
-    return res.json({ message: "❌ Failed to save data" });
-  }
+  save();
 
   const latestReply = replies[replies.length - 1] || replies[0];
   res.json({
@@ -95,16 +99,9 @@ app.get("/teach", (req, res) => {
 });
 
 app.get("/list", (req, res) => {
-  try {
-    const totalQuestions = Object.keys(data).length;
-    const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
-    res.json({
-      totalQuestions,
-      totalReplies
-    });
-  } catch {
-    res.json({ message: "❌ Error listing data" });
-  }
+  const totalQuestions = Object.keys(data).length;
+  const totalReplies = Object.values(data).reduce((sum, r) => sum + r.length, 0);
+  res.json({ totalQuestions, totalReplies });
 });
 
 app.get("/simsimi-list", (req, res) => {
@@ -113,10 +110,7 @@ app.get("/simsimi-list", (req, res) => {
 
   if (!data[question]) return res.json({ message: "❌ No replies found" });
 
-  const list = data[question]
-    .map((r, i) => `${i + 1}. ${r}`)
-    .join("\n");
-
+  const list = data[question].map((r, i) => `${i + 1}. ${r}`).join("\n");
   const formatted = `📌 ${fancyFonts("Trigger")}: ${question.toUpperCase()}\n📋 ${fancyFonts("Total")}: ${data[question].length}\n━━━━━━━━━━━━━━\n${list}`;
   res.json({ message: formatted, total: data[question].length, replies: data[question] });
 });
@@ -131,19 +125,14 @@ app.get("/delete", (req, res) => {
   data[question] = data[question].filter(r => r !== ans);
   if (data[question].length === 0) delete data[question];
 
-  try {
-    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch {}
-
+  save();
   res.json({ message: "✅ Reply deleted" });
 });
 
 app.get("/edit", (req, res) => {
   const { ask, old, new: updated } = req.query;
   const question = removeEmojis(ask?.toLowerCase());
-  if (!question || !old || !updated) {
-    return res.json({ message: "❌ Provide ask, old and new" });
-  }
+  if (!question || !old || !updated) return res.json({ message: "❌ Provide ask, old and new" });
 
   if (!data[question]) return res.json({ message: "❌ Trigger not found" });
 
@@ -151,12 +140,20 @@ app.get("/edit", (req, res) => {
   if (index === -1) return res.json({ message: "❌ Old reply not found" });
 
   data[question][index] = updated;
-
-  try {
-    fs.writeFileSync("./data.json", JSON.stringify(data, null, 2));
-  } catch {}
+  save();
 
   res.json({ message: "✅ Reply updated" });
+});
+
+app.get("/setting", (req, res) => {
+  res.json(settings);
+});
+
+app.post("/setting", (req, res) => {
+  const { autoTeach } = req.body;
+  settings.autoTeach = autoTeach;
+  save();
+  res.json({ message: `✅ Auto teach is now ${autoTeach ? "ON" : "OFF"}` });
 });
 
 app.listen(PORT, () => {
