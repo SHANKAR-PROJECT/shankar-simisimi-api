@@ -1,13 +1,28 @@
 {
-  "name": "rx-api",
+  "name": "shankar-simisimi-api",
   "version": "1.0.0",
+  "description": "Funny Hindi Simisimi API with GitHub Memory Integration",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
+    "@octokit/rest": "^20.0.2",
     "cors": "^2.8.5",
     "express": "^4.18.2"
-  }
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "simisimi",
+    "funny",
+    "ai",
+    "chatbot",
+    "hindi",
+    "github-memory"
+  ],
+  "author": "SHANKAR-PROJECT",
+  "license": "MIT"
 }
