@@ -1,5 +1,4 @@
 const express = require('express');
-const fs = require('fs');
 const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,13 +6,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// ⛔️ File system हटाया गया क्योंकि Render पर write नहीं हो सकता
 let db = {};
-
-try {
-  db = JSON.parse(fs.readFileSync('db.json', 'utf8'));
-} catch {
-  db = {};
-}
 
 // 📥 ADD Route - नया जवाब जोड़ने के लिए
 app.get('/add', (req, res) => {
@@ -25,7 +19,6 @@ app.get('/add', (req, res) => {
   }
 
   db[ask] = answer;
-  fs.writeFileSync('db.json', JSON.stringify(db, null, 2));
   res.json({ message: 'जवाब जोड़ दिया गया!', ask, answer });
 });
 
@@ -41,9 +34,8 @@ app.get('/simi', (req, res) => {
   res.json({ answer });
 });
 
-// ✅ Root route (optional)
 app.get('/', (req, res) => {
-  res.send('Simisimi API चालू है 💖');
+  res.send('Simisimi API चालू है 💖 (Note: डेटा रीसेट होगा हर बार)');
 });
 
 app.listen(PORT, () => {
